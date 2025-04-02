@@ -12,3 +12,5 @@ neutralino.js
 .storage
 *.log
 resources/.DS_Store
+.DS_Store
+/.tmp

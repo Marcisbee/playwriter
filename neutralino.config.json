@@ -75,7 +75,7 @@
       "minimumOS": "10.13.0",
       "appName": "Playwriter",
       "appBundleName": "Playwriter",
-      "appIdentifier": "com.marketmix.ext.bun.demo",
+      "appIdentifier": "com.playwriter.ext.bun.app",
       "appIcon":  "resources/icons/icon.icns"
     }
   }
