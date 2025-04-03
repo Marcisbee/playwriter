@@ -27,7 +27,7 @@ export function App() {
   }
 
   if (!cwd) {
-    return html`<button onclick=${selectCdm}>Select project</button>`;
+    return html`<div style="display: flex;flex-direction: column;justify-content: center;min-height: 100vh;text-align: center;"><div><button onclick=${selectCdm}>Select project</button></div></div>`;
   }
 
   return html`<${Project} cwd=${cwd} />`;
@@ -45,7 +45,7 @@ function Project({ cwd }) {
     async function load() {
       setError("");
 
-      const result  = await Neutralino.os.execCommand("./tasks.sh prepare", { cwd });
+      const result = await Neutralino.os.execCommand("./tasks.sh prepare", { cwd });
 
       if (result.stdErr) {
         console.error(result.stdErr);
@@ -231,17 +231,25 @@ function ProjectVariables() {
  * @param {{ cwd: string }} props
  */
 function ProjectGenerate({ cwd }) {
+  const [lastOutput, setLastOutput] = useState("");
   const [output, setOutput] = useState("");
   const [url, setUrl] = useState("");
   const [auth, setAuth] = useState("");
   const [proc, setProc] = useState(null);
   const [_, logs] = useLogs(proc, setProc);
-  const [authList, reloadAuthList] = useAuthList(proc, () => setOutput(""), cwd);
+  const [authList, reloadAuthList] = useAuthList(proc, () => {
+    let lastOutput = "";
+    setOutput((o) => {
+      lastOutput = o;
+      return "";
+    });
+    // setLastOutput(lastOutput);
+  }, cwd);
 
   async function selectTestFile() {
-    const output = await Neutralino.os.showSaveDialog('Create setup file', {
+    const output = await Neutralino.os.showSaveDialog('Create test file', {
       filters: [
-        {name: 'Setup file', extensions: ['ts']},
+        { name: 'Setup file', extensions: ['ts'] },
       ]
     });
     setOutput(output);
@@ -326,6 +334,69 @@ function ProjectGenerate({ cwd }) {
 }
 
 /**
+ * @param {{ path: string, exit: () => void }} props
+ */
+function ProjectSetVariables({ path, exit }) {
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  if (!path) {
+    return ""
+  }
+
+  return html`
+    <br />
+    <div class="var-replace">
+      <strong>Set variables in last recorded test</strong>
+      <br />
+      <span>${path}</span>
+      <form onsubmit=${async (e) => {
+      e.preventDefault();
+
+      setError("");
+      setSuccess("");
+
+      const formData = new FormData(e.target);
+      const text = formData.get("text");
+      const type = formData.get("type");
+
+      if (!type || !text) {
+        setError('No value entered');
+        return;
+      }
+
+      const content = await Neutralino.filesystem.readFile(path);
+
+      if (content.indexOf(text) === -1) {
+        setError(`Value ${JSON.stringify(text)} not found!`);
+        return;
+      }
+
+      console.log({
+        text,
+        type,
+        content,
+      });
+
+      // await Neutralino.os.showMessageBox('Playwriter', 'No value to replace');
+      setSuccess(`Value ${JSON.stringify(text)} replaced!`);
+    }}>
+        <input type="text" name="text" placeholder="Value to replace" />
+        <select name="type">
+          <option value="generic">generic</option>
+          <option value="email">email</option>
+        </select>
+        <br />
+        <button style="margin-top: 10px;" type="submit">replace</button>
+        <button type="button" onclick=${exit}>close</button>
+        ${success && html`<div style="color: green;">${success}</div>`}
+        ${error && html`<div style="color: orangered;">${error}</div>`}
+      </form>
+    </div>
+  `;
+}
+
+/**
  * @param {{ cwd: string }} props
  */
 function ProjectTest({ cwd }) {
@@ -345,7 +416,7 @@ function ProjectTest({ cwd }) {
       `PLAYWRIGHT_FORCE_TTY=0 FORCE_COLOR=0 ./tasks.sh test --reporter="list" --list`,
       filter && `--grep=${JSON.stringify(`/${grep}/`)}`,
     ].filter(Boolean);
-    const result  = await Neutralino.os.execCommand(cmd.join(" "), { cwd });
+    const result = await Neutralino.os.execCommand(cmd.join(" "), { cwd });
 
     if (result.stdErr) {
       console.error(result.stdErr)
@@ -457,7 +528,7 @@ function ProjectTest({ cwd }) {
         `}
 
         ${procReport ? html`
-          <dialog ref=${(e) => {e?.showModal()}} onclose=${stopReport}>
+          <dialog ref=${(e) => { e?.showModal() }} onclose=${stopReport}>
             <h3>Report is running</h3>
             <button onclick=${stopReport}>Stop</button>
           </dialog>
@@ -532,8 +603,8 @@ function useLogs(proc, setProc) {
      * @param {CustomEvent<any>} evt
      */
     function handler(evt) {
-      if(proc?.id == evt.detail.id) {
-        switch(evt.detail.action) {
+      if (proc?.id == evt.detail.id) {
+        switch (evt.detail.action) {
           case 'stdOut':
             setLogs((l) => l + evt.detail.data);
             break;
@@ -587,7 +658,7 @@ function useAuthList(proc, reset, cwd) {
         .map((entry) => (
           Neutralino.filesystem.readFile(`${entry.path}/auth.json`)
             .then((content) => content && entry)
-            .catch(() => {})
+            .catch(() => { })
         ))
     )).filter(Boolean);
 
@@ -623,3 +694,27 @@ function iconFail() {
 function iconSkip() {
   return html`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" style="color:gray;" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 12h8m-4-4"/><circle cx="12" cy="12" r="10"/></g></svg>`
 }
+
+// window.onkeydown = (e) => {
+//   console.log(e)
+//   if (e.key === 'c' && e.metaKey) {
+//     e.preventDefault();
+//     console.log("COPY", window.getSelection()?.toString())
+//     Neutralino.clipboard.writeText(window.getSelection()?.toString()).then(() => {
+//       console.log('Text copied to clipboard');
+//     });
+//   }
+// }
+
+// window.onkeydown = (e) => {
+//   console.log(e)
+//   if (e.key === 'v' && e.metaKey) {
+//     // window.getSelection().target.dispatchEvent(new KeyboardEvent('keydown', {'key': 'a'}));
+//     e.preventDefault();
+//     console.log("PASTE", window.getSelection())
+//     Neutralino.clipboard.readText().then((text) => {
+//       window.getSelection()
+//       console.log('Text copied to clipboard');
+//     });
+//   }
+// }

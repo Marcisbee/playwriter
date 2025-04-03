@@ -16,6 +16,7 @@
   "nativeAllowList": [
     "app.*",
     "os.*",
+    "clipboard.*",
     "filesystem.*",
     "debug.log"
   ],
