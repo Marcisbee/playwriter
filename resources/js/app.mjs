@@ -120,7 +120,7 @@ function ProjectSetup({ cwd }) {
 
   async function selectSetupDir() {
     const output = await Neutralino.os.showFolderDialog('Create setup dir');
-    setSetupDir(output?.replace(cwd + "/", ""));
+    setSetupDir(output);
   }
 
   async function generateTest() {
@@ -258,7 +258,7 @@ function ProjectGenerate({ cwd }) {
         { name: 'Setup file', extensions: ['ts'] },
       ]
     });
-    setOutput(output?.replace(cwd + "/", ""));
+    setOutput(output);
   }
 
   async function generateTest() {
