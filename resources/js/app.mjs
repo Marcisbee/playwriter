@@ -2,7 +2,7 @@
 import { html, useLayoutEffect, useState } from 'https://unpkg.com/htm@3.1.1/preact/standalone.module.js'
 
 export function App() {
-  const [cwd, setCwd] = useState("");
+  const [cwd, setCwd] = useState("/private/var/www/playwright-gen-example");
 
   async function selectCdm() {
     const entry = await Neutralino.os.showFolderDialog('Select project directory');
@@ -47,10 +47,16 @@ function Project({ cwd }) {
 
       const result = await Neutralino.os.execCommand("./tasks.sh prepare", { cwd });
 
+      // First try might return stderr
       if (result.stdErr) {
-        console.error(result.stdErr);
-        setError(result.stdErr);
-        return;
+        const result2 = await Neutralino.os.execCommand("./tasks.sh prepare", { cwd });
+
+        // If it's still error, then just show error
+        if (result2.stdErr) {
+          console.error(result.stdErr);
+          setError(result.stdErr);
+          return;
+        }
       }
 
       setLoading(false);
@@ -114,7 +120,7 @@ function ProjectSetup({ cwd }) {
 
   async function selectSetupDir() {
     const output = await Neutralino.os.showFolderDialog('Create setup dir');
-    setSetupDir(output);
+    setSetupDir(output?.replace(cwd + "/", ""));
   }
 
   async function generateTest() {
@@ -252,7 +258,7 @@ function ProjectGenerate({ cwd }) {
         { name: 'Setup file', extensions: ['ts'] },
       ]
     });
-    setOutput(output);
+    setOutput(output?.replace(cwd + "/", ""));
   }
 
   async function generateTest() {
@@ -400,7 +406,7 @@ function ProjectSetVariables({ path, exit }) {
  * @param {{ cwd: string }} props
  */
 function ProjectTest({ cwd }) {
-  const [grep, setGrep] = useState("pocketbase");
+  const [grep, setGrep] = useState("dashboard");
   const [procReport, setProcReport] = useState(null);
   const [proc, setProc] = useState(null);
   const [rawLogs, logs] = useLogs(proc, setProc);
@@ -439,11 +445,11 @@ function ProjectTest({ cwd }) {
 
   function getTestStatusList() {
     const lines = logs.split("\n").filter((line) => (
-      /^  [✘✓]  \d+ \[\w+\] › [a-z0-9:\-_\/\.]+ › \w+/.test(line)
+      /^  [✘✓]  \d+ \[\w+\] › [a-z0-9:\-_\/\. ]+ › \w+/i.test(line)
     ));
 
     return lines.map((line) => {
-      const [_, status, type, path, name] = line.match(/^  ([✘✓])  \d+ \[(\w+)\] › ([a-z0-9:\-_\/\.]+) › (\w+)/) || [];
+      const [_, status, type, path, name] = line.match(/^  ([✘✓])  \d+ \[(\w+)\] › ([a-z0-9:\-_\/\. ]+) › (\w+)/i) || [];
 
       return {
         type,
