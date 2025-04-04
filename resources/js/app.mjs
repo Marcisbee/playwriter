@@ -2,7 +2,7 @@
 import { html, useLayoutEffect, useState } from 'https://unpkg.com/htm@3.1.1/preact/standalone.module.js'
 
 export function App() {
-  const [cwd, setCwd] = useState("/private/var/www/playwright-gen-example");
+  const [cwd, setCwd] = useState("");
 
   async function selectCdm() {
     const entry = await Neutralino.os.showFolderDialog('Select project directory');
