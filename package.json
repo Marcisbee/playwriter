@@ -1,5 +1,5 @@
 {
   "scripts": {
-    "build": "npx @neutralinojs/neu build"
+    "build": "(cd vite-src && npm run build) && (npx @neutralinojs/neu build)"
   }
 }

@@ -14,3 +14,6 @@ neutralino.js
 resources/.DS_Store
 .DS_Store
 /.tmp
+/node_modules
+/vite-src/node_modules
+/vite-src/dist
