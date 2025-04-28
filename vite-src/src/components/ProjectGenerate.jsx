@@ -81,7 +81,7 @@ export function ProjectGenerate({ cwd }) {
         <br />
 
         <label>
-          <span>Test file location</span>
+          <span>Save test file location</span>
           <br />
           <input
             type="text"
