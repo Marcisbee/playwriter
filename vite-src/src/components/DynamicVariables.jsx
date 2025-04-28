@@ -125,8 +125,9 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
   const [loading, setLoading] = useState(true);
   const [selectedVar, setSelectedVar] = useState("");
   const [customValue, setCustomValue] = useState("");
-    const [highlightedContent, setHighlightedContent] = useState("");
+  const [highlightedContent, setHighlightedContent] = useState("");
 
+  const [hasMatches, setHasMatches] = useState(false); // State to track if customValue has matches in strings
   const [envVars, setEnvVars] = useState([]);
 
   // Generate highlighted preview when content or value changes
@@ -139,6 +140,47 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
       setHighlightedContent(escapeHtml(fileContent));
     }
   }, [fileContent, customValue]);
+
+  // Check for matches when fileContent or customValue changes
+  useEffect(() => {
+    if (!customValue || !fileContent) {
+      setHasMatches(false);
+      return;
+    }
+
+    let foundMatch = false;
+    const singleQuoteRegex = /'([^']*)'/g;
+    const doubleQuoteRegex = /"([^"]*)"/g;
+    const backtickRegex = /`([^`]*)`/g; // Template literals
+
+    const checkRegexForMatches = (regex) => {
+      let match;
+      while ((match = regex.exec(fileContent)) !== null) {
+        const innerContent = match[1]; // e.g., some text
+        if (innerContent.includes(customValue)) {
+          foundMatch = true;
+          return; // Exit early once a match is found in this regex
+        }
+      }
+    };
+
+    checkRegexForMatches(singleQuoteRegex);
+    if (foundMatch) {
+      setHasMatches(true);
+      return;
+    }
+
+    checkRegexForMatches(doubleQuoteRegex);
+    if (foundMatch) {
+      setHasMatches(true);
+      return;
+    }
+
+    checkRegexForMatches(backtickRegex);
+    setHasMatches(foundMatch);
+
+  }, [fileContent, customValue]);
+
   // Load environment variables from env.config
   useEffect(() => {
     async function loadEnvVars() {
@@ -270,10 +312,9 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 
   return (
     <div className="var-replace">
-      <p style={{ marginBottom: '15px', fontStyle: 'italic', color: '#666' }}>
-        Editing file: <code>{filePath}</code>
+      <p>
+        <strong>{filePath.slice(cwd.length + 1)}</strong>
       </p>
-      <p>Enter text to replace with an dynamic variable:</p>
 
       <div>
         <div style={{ marginBottom: '10px' }}>
@@ -311,27 +352,28 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
       <div style={{ marginTop: '20px' }}>
         <button
           onClick={applyReplacement}
-          disabled={!selectedVar || !customValue}
+          disabled={!selectedVar || !customValue || !hasMatches}
         >
-          Apply Replacement
+          Apply Replacement{ !hasMatches && customValue && ' (No matches found)'}
         </button>
         <button onClick={onClose} style={{ marginLeft: '10px' }}>
           Cancel
         </button>
       </div>
 
-      {/* Preview Section */}
-      {customValue && fileContent && (
+
         <div style={{ marginTop: '20px', border: '1px solid #ccc', padding: '10px', maxHeight: '300px', overflowY: 'auto', background: '#f9f9f9' }}>
           <p style={{ marginTop: '0', marginBottom: '5px', fontSize: '0.9em', color: '#333' }}>
-            Preview (occurrences inside quotes matching "{customValue}" will be highlighted):
+            {customValue
+              ? `Preview (occurrences inside quotes matching "${customValue}" will be highlighted):`
+              : 'File Content Preview:'}
           </p>
           <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word', margin: '0', fontSize: '0.85em' }}>
             {/* Render the HTML with highlights */}
             <code dangerouslySetInnerHTML={{ __html: highlightedContent }} />
           </pre>
         </div>
-      )}
+
       {customValue && selectedVar && (
         <div style={{ marginTop: '10px' }}>
           <p>Preview: <code>{customValue}</code> → <code>${'{process.env.' + selectedVar + '}'}</code></p>
