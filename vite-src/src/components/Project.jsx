@@ -1,9 +1,11 @@
+// @ts-check
 import React, { useState, useLayoutEffect } from 'react';
 import { filesystem, os } from "@neutralinojs/lib";
 import { ProjectTest } from './ProjectTest.jsx';
 import { ProjectGenerate } from './ProjectGenerate.jsx';
 import { ProjectSetup } from './ProjectSetup.jsx';
 import { IconPlaywright } from '../utils/icons.jsx';
+import { DynamicVariables } from './DynamicVariables.jsx';
 
 /**
  * @param {{ cwd: string }} props
@@ -91,6 +93,13 @@ export function Project({ cwd }) {
         >
           Generate auth
         </button>
+        <button
+          type="button"
+          className={tab === "dynamic-vars" ? "active" : undefined}
+          onClick={() => setTab("dynamic-vars")}
+        >
+          Dynamic vars
+        </button>
       </menu>
 
       <br />
@@ -98,6 +107,7 @@ export function Project({ cwd }) {
       {tab === 'run' && <ProjectTest cwd={cwd} />}
       {tab === 'generate-test' && <ProjectGenerate cwd={cwd} />}
       {tab === 'generate-auth' && <ProjectSetup cwd={cwd} />}
+      {tab === 'dynamic-vars' && <DynamicVariables cwd={cwd} />}
     </div>
   );
 }
