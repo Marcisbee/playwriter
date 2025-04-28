@@ -11,6 +11,7 @@
   "nativeAllowList": [
     "app.*",
     "os.*",
+    "storage.*",
     "clipboard.*",
     "filesystem.*",
     "debug.log"
@@ -18,7 +19,7 @@
   "modes": {
     "window": {
       "title": "Playwriter",
-      "width": 500,
+      "width": 550,
       "height": 800,
       "minWidth": 400,
       "minHeight": 200,
