@@ -47,6 +47,75 @@ export function DynamicVariables({ cwd }) {
   );
 }
 
+// Helper function to escape HTML characters
+function escapeHtml(unsafe) {
+  if (!unsafe) return "";
+  return unsafe
+    .replace(/&amp;/g, "&amp;")
+    .replace(/&lt;/g, "&lt;")
+    .replace(/&gt;/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// Function to generate highlighted preview HTML based on matches within quotes
+function generateHighlightedPreview(content, textToHighlight) {
+  if (!textToHighlight) {
+    return escapeHtml(content); // No highlighting needed, just escape
+  }
+
+  const highlights = [];
+  // Regex to find strings, capturing content within quotes
+  const singleQuoteRegex = /'([^']*)'/g;
+  const doubleQuoteRegex = /"([^"]*)"/g;
+  const backtickRegex = /`([^`]*)`/g; // Template literals
+
+  const findHighlightsInRegex = (regex) => {
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      const fullMatch = match[0]; // e.g., 'some text'
+      const innerContent = match[1]; // e.g., some text
+      const quoteType = fullMatch[0]; // e.g., '
+      const matchStartIndex = match.index; // Start index of the full quoted string in the original content
+
+      let innerIndex = innerContent.indexOf(textToHighlight);
+      while (innerIndex !== -1) {
+        // Calculate the absolute start/end index in the original content string
+        const start = matchStartIndex + quoteType.length + innerIndex;
+        const end = start + textToHighlight.length;
+        highlights.push({ start, end });
+        // Find the next occurrence within the same innerContent
+        innerIndex = innerContent.indexOf(textToHighlight, innerIndex + 1);
+      }
+    }
+  };
+
+  // Find highlights within each type of quote
+  findHighlightsInRegex(singleQuoteRegex);
+  findHighlightsInRegex(doubleQuoteRegex);
+  findHighlightsInRegex(backtickRegex);
+
+  // Sort highlights by start index to process the string sequentially
+  highlights.sort((a, b) => a.start - b.start);
+
+  let resultHtml = "";
+  let lastIndex = 0;
+
+  for (const highlight of highlights) {
+    // Add text before the current highlight (escaped)
+    resultHtml += escapeHtml(content.substring(lastIndex, highlight.start));
+    // Add the highlighted text (escaped) wrapped in a span
+    // Using inline style for simplicity, could use a CSS class
+    resultHtml += `<span style="background-color: yellow;">${escapeHtml(content.substring(highlight.start, highlight.end))}</span>`;
+    // Update the index to the end of the current highlight
+    lastIndex = highlight.end;
+  }
+
+  // Add any remaining text after the last highlight (escaped)
+  resultHtml += escapeHtml(content.substring(lastIndex));
+
+  return resultHtml;
+}
 /**
  * Component for suggesting environment variable replacements
  * @param {{ filePath: string, onClose: () => void, cwd: string }} props
@@ -56,9 +125,20 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
   const [loading, setLoading] = useState(true);
   const [selectedVar, setSelectedVar] = useState("");
   const [customValue, setCustomValue] = useState("");
+    const [highlightedContent, setHighlightedContent] = useState("");
 
   const [envVars, setEnvVars] = useState([]);
 
+  // Generate highlighted preview when content or value changes
+  useEffect(() => {
+    if (fileContent && customValue) {
+      const previewHtml = generateHighlightedPreview(fileContent, customValue);
+      setHighlightedContent(previewHtml);
+    } else {
+      // If no value to replace or no content, show plain escaped content
+      setHighlightedContent(escapeHtml(fileContent));
+    }
+  }, [fileContent, customValue]);
   // Load environment variables from env.config
   useEffect(() => {
     async function loadEnvVars() {
@@ -240,6 +320,18 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
         </button>
       </div>
 
+      {/* Preview Section */}
+      {customValue && fileContent && (
+        <div style={{ marginTop: '20px', border: '1px solid #ccc', padding: '10px', maxHeight: '300px', overflowY: 'auto', background: '#f9f9f9' }}>
+          <p style={{ marginTop: '0', marginBottom: '5px', fontSize: '0.9em', color: '#333' }}>
+            Preview (occurrences inside quotes matching "{customValue}" will be highlighted):
+          </p>
+          <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word', margin: '0', fontSize: '0.85em' }}>
+            {/* Render the HTML with highlights */}
+            <code dangerouslySetInnerHTML={{ __html: highlightedContent }} />
+          </pre>
+        </div>
+      )}
       {customValue && selectedVar && (
         <div style={{ marginTop: '10px' }}>
           <p>Preview: <code>{customValue}</code> → <code>${'{process.env.' + selectedVar + '}'}</code></p>
