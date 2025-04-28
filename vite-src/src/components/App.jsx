@@ -75,6 +75,7 @@ export function App() {
       console.error("Error saving recent projects after removal:", err);
     }
   }
+
   if (!cwd) {
     return (
       <div style={{
