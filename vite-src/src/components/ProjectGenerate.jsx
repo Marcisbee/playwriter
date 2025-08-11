@@ -34,12 +34,19 @@ export function ProjectGenerate({ cwd }) {
 	}
 
 	async function generateTest() {
-		const authInput = `${auth}/auth.json`;
+		const authDir = /^\//.test(auth || "")
+			? auth.startsWith(cwd + "/")
+				? auth.slice(cwd.length + 1)
+				: auth
+			: auth;
+		const authInput = auth ? `${authDir}/auth.json` : "";
 
 		const commands = [
 			"PLAYWRIGHT_FORCE_TTY=0 FORCE_COLOR=0 ./tasks.sh codegen",
 			`--output=${JSON.stringify(output)}`,
-			/^\//.test(auth || "") && `--load-storage=${JSON.stringify(authInput)}`,
+			auth &&
+				!/^\//.test(authDir || "") &&
+				`--load-storage=${JSON.stringify(authInput)}`,
 			url,
 		].filter(Boolean);
 

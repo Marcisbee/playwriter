@@ -26,14 +26,24 @@ export function ProjectSetup({ cwd }) {
 
 	async function generateTest() {
 		const setupOutput = `${setupDir}/setup.ts`;
-		const authOutput = `${setupDir}/auth.json`;
-		const authInput = `${auth}/auth.json`;
+		const authDirForSave = setupDir.startsWith(cwd + "/")
+			? setupDir.slice(cwd.length + 1)
+			: setupDir;
+		const authOutput = `${authDirForSave}/auth.json`;
+		const authDir = /^\//.test(auth || "")
+			? auth.startsWith(cwd + "/")
+				? auth.slice(cwd.length + 1)
+				: auth
+			: auth;
+		const authInput = auth ? `${authDir}/auth.json` : "";
 
 		const commands = [
 			"./tasks.sh codegen",
 			`--output=${JSON.stringify(setupOutput)}`,
 			saveAuth && `--save-storage=${JSON.stringify(authOutput)}`,
-			/^\//.test(auth || "") && `--load-storage=${JSON.stringify(authInput)}`,
+			auth &&
+				!/^\//.test(authDir || "") &&
+				`--load-storage=${JSON.stringify(authInput)}`,
 			url,
 		].filter(Boolean);
 

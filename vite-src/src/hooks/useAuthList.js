@@ -36,12 +36,21 @@ export function useAuthList(proc, reset, cwd) {
 				await Promise.all(
 					entries
 						.filter((entry) => entry.type === "DIRECTORY")
-						.map((entry) =>
-							filesystem
-								.readFile(`${entry.path}/auth.json`)
-								.then((content) => content && entry)
-								.catch(() => null),
-						),
+						.map(async (entry) => {
+							const absDir = entry.path;
+							try {
+								const content = await filesystem.readFile(
+									`${absDir}/auth.json`,
+								);
+								if (!content) return null;
+								const relPath = absDir.startsWith(cwd + "/")
+									? absDir.slice(cwd.length + 1)
+									: absDir;
+								return { ...entry, path: relPath, absolutePath: absDir };
+							} catch {
+								return null;
+							}
+						}),
 				)
 			).filter(Boolean);
 
