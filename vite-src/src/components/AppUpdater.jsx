@@ -67,12 +67,11 @@ export function AppUpdater() {
 		// 3) rm Playwriter.zip
 		// 4) rm -rf __MACOSX
 		const sh = [
-			"set -e",
 			`curl -L -o Playwriter.zip "${zipUrl}"`,
 			"unzip -o Playwriter.zip",
 			"rm -f Playwriter.zip",
 			"rm -rf __MACOSX",
-		].join("; ");
+		].join(" && ");
 
 		// Execute in the current working directory if available
 		const cwd =
@@ -82,8 +81,7 @@ export function AppUpdater() {
 
 		try {
 			// Escape double quotes for bash -lc "<cmd>"
-			const bashCmd = `bash -lc "${sh.replaceAll('"', '\\"')}"`;
-			const result = await os.execCommand(bashCmd, cwd ? { cwd } : undefined);
+			const result = await os.execCommand(sh, cwd ? { cwd } : undefined);
 
 			const combined = [result.stdOut || "", result.stdErr || ""]
 				.filter(Boolean)
