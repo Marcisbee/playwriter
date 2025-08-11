@@ -1,4 +1,4 @@
-import { app, os } from "@neutralinojs/lib";
+import { app, filesystem, os } from "@neutralinojs/lib";
 import React, { useEffect, useMemo, useState } from "react";
 
 /**
@@ -75,15 +75,15 @@ export function AppUpdater() {
 
 		// Execute in the current working directory if available
 		const cwd =
-			typeof window !== "undefined" && window.NL_CWD
-				? window.NL_CWD
+			typeof window !== "undefined" && window.NL_PATH
+				? window.NL_PATH.replace(/\/Playwriter\.app\/Contents\/Resources$/, "")
 				: undefined;
 
 		try {
 			// Escape double quotes for bash -lc "<cmd>"
-			const result = await os.execCommand(sh, cwd ? { cwd } : undefined);
+			const result = await os.execCommand(sh, { cwd });
 
-			const combined = [result.stdOut || "", result.stdErr || ""]
+			const combined = [cwd, result.stdOut || "", result.stdErr || ""]
 				.filter(Boolean)
 				.join("\n")
 				.trim();
@@ -223,6 +223,7 @@ export function AppUpdater() {
 						padding: 10,
 						borderRadius: 6,
 						marginTop: 8,
+						textAlign: "left",
 					}}
 				>
 					{updateLog}
