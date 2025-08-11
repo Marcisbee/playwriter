@@ -1,6 +1,6 @@
 import { filesystem, os, storage } from "@neutralinojs/lib";
 import React, { useEffect, useState } from "react";
-
+import { AppUpdater } from "./AppUpdater.jsx";
 import { Project } from "./Project.jsx";
 
 export function App() {
@@ -87,15 +87,13 @@ export function App() {
 					textAlign: "center",
 				}}
 			>
-				<div>
+				<AppUpdater />
+				<div style={{ flex: 1, alignContent: "center" }}>
 					<button onClick={selectCdm}>Select Project Directory</button>
 				</div>
 				{recentProjects.length > 0 && (
 					<div
 						style={{
-							position: "absolute",
-							bottom: 0,
-							left: 0,
 							width: "100%",
 							background: "#fff",
 							borderTop: "2px solid #ccc",
