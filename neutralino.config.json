@@ -14,6 +14,7 @@
     "storage.*",
     "clipboard.*",
     "filesystem.*",
+    "window.*",
     "debug.log"
   ],
   "modes": {
@@ -38,8 +39,8 @@
     "binaryName": "myapp",
     "resourcesPath": "/vite-src/dist/",
     "extensionsPath": "/extensions/",
-    "binaryVersion": "6.0.0",
-    "clientVersion": "5.4.0",
+    "binaryVersion": "6.2.0",
+    "clientVersion": "6.2.0",
     "frontendLibrary": {
       "patchFile": "/vite-src/index.html",
       "devUrl": "http://localhost:5173",
