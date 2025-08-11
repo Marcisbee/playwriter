@@ -55,7 +55,7 @@ if [ "$1" != "--test" ]; then
     echo -e "\033[1mBuilding Neutralino Apps ...\033[0m"
     echo
     rm -rf "./dist/${APP_BINARY}"
-    neu build
+    npx @neutralinojs/neu build
     echo -e "\033[1mDone.\033[0m"
 else
     echo
@@ -77,7 +77,7 @@ for APP_ARCH in "${APP_ARCH_LIST[@]}"; do
     RES=./dist/${APP_BINARY}/resources.neu
     EXT=./dist/${APP_BINARY}/extensions
 
-    echo 
+    echo
     echo -e "\033[1mBuilding App Bundle (${APP_ARCH}):\033[0m"
     echo
     echo "  Minimum macOS: ${APP_MIN_OS}"
@@ -150,5 +150,5 @@ for APP_ARCH in "${APP_ARCH_LIST[@]}"; do
     echo -e "\033[1mBuild finished, ready to sign and notarize.\033[0m"
 done
 
-echo 
+echo
 echo -e "\033[1mAll done.\033[0m"
