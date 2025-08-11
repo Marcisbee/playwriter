@@ -335,6 +335,9 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 							onChange={(e) => setCustomValue(e.target.value)}
 							placeholder="Enter text to replace"
 							style={{ width: "100%", maxWidth: "300px" }}
+							autocomplete="off"
+							autocorrect="off"
+							autocapitalize="off"
 						/>
 					</label>
 				</div>

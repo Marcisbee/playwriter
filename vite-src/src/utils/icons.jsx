@@ -48,16 +48,26 @@ export function IconLoad() {
 			xmlns="http://www.w3.org/2000/svg"
 			width="18"
 			height="18"
+			style={{ color: "orange" }}
 			viewBox="0 0 24 24"
 		>
-			<path
-				fill="none"
-				stroke="currentColor"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-				strokeWidth="2"
-				d="M12 2v4m4.2 1.8l2.9-2.9M18 12h4m-5.8 4.2l2.9 2.9M12 18v4m-7.1-2.9l2.9-2.9M2 12h4M4.9 4.9l2.9 2.9"
-			/>
+			<g>
+				<circle cx="3" cy="12" r="2" fill="currentColor" />
+				<circle cx="21" cy="12" r="2" fill="currentColor" />
+				<circle cx="12" cy="21" r="2" fill="currentColor" />
+				<circle cx="12" cy="3" r="2" fill="currentColor" />
+				<circle cx="5.64" cy="5.64" r="2" fill="currentColor" />
+				<circle cx="18.36" cy="18.36" r="2" fill="currentColor" />
+				<circle cx="5.64" cy="18.36" r="2" fill="currentColor" />
+				<circle cx="18.36" cy="5.64" r="2" fill="currentColor" />
+				<animateTransform
+					attributeName="transform"
+					dur="1.5s"
+					repeatCount="indefinite"
+					type="rotate"
+					values="0 12 12;360 12 12"
+				/>
+			</g>
 		</svg>
 	);
 }

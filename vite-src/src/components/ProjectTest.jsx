@@ -143,6 +143,9 @@ export function ProjectTest({ cwd }) {
 						type="text"
 						value={grep}
 						onChange={(e) => setGrep(e.target.value)}
+						autocomplete="off"
+						autocorrect="off"
+						autocapitalize="off"
 					/>
 				</label>
 
