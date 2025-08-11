@@ -1,118 +1,118 @@
 body {
-  background-color: white;
+	background-color: white;
 }
 
 h1 {
-  font-size: 20px;
+	font-size: 20px;
 }
 
 h2 {
-  font-size: 18px;
+	font-size: 18px;
 }
 
 h3 {
-  font-size: 16px;
+	font-size: 16px;
 }
 
 button:disabled,
 input:disabled {
-  border-color: transparent;
-  background-color: #f0f0f0;
-  color: #aaa;
+	border-color: transparent;
+	background-color: #f0f0f0;
+	color: #aaa;
 }
 
 input:read-only {
-  border-color: #e0e0e0;
-  background-color: #f9f9f9;
+	border-color: #e0e0e0;
+	background-color: #f9f9f9;
 }
 
 select,
 input {
-  border-radius: 8px;
-  padding: 6px 9px;
-  border-color: #ccc;
+	border-radius: 8px;
+	padding: 6px 9px;
+	border-color: #ccc;
 }
 
 label {
-  display: inline-block;
-  width: calc(100% - 100px);
-  margin-right: 6px;
+	display: inline-block;
+	width: calc(100% - 100px);
+	margin-right: 6px;
 }
 
 label select,
 label input[type="text"] {
-  width: 100%;
+	width: 100%;
 }
 
 button.active {
-  background-color: dodgerblue !important;
-  border-color: dodgerblue !important;
-  color: #fff !important;
+	background-color: dodgerblue !important;
+	border-color: dodgerblue !important;
+	color: #fff !important;
 }
 
 dialog {
-  background: #fff;
+	background: #fff;
 }
 
 ul {
-  list-style: none;
-  padding-left: 0;
+	list-style: none;
+	padding-left: 0;
 }
 
 ul svg {
-  margin-right: 5px;
+	margin-right: 5px;
 }
 
 button {
-  display: inline-block;
-  margin-right: 6px;
-  border-radius: 10px;
-  padding: 6px 11px;
-  background-color: #f0f0f0;
-  border: 0;
+	display: inline-block;
+	margin-right: 6px;
+	border-radius: 10px;
+	padding: 6px 11px;
+	background-color: #f0f0f0;
+	border: 0;
 }
 
 button:not(:disabled):hover {
-  background-color: #e6e6e6;
+	background-color: #e6e6e6;
 }
 
 button:not(:disabled):active {
-  background-color: #e0e0e0;
+	background-color: #e0e0e0;
 }
 
 details {
-  display: block;
-  border-radius: 10px;
-  font-size: 13px;
-  background-color: #f0f0f0;
+	display: block;
+	border-radius: 10px;
+	font-size: 13px;
+	background-color: #f0f0f0;
 }
 
 details > summary {
-  display: block;
-  padding: 6px 10px;
+	display: block;
+	padding: 6px 10px;
 }
 
 details > pre {
-  display: block;
-  padding: 10px;
+	display: block;
+	padding: 10px;
 }
 
 .color-red {
-  color: orangered;
+	color: orangered;
 }
 
 .color-green {
-  color: green;
+	color: green;
 }
 
 .color-yellow {
-  color: orange;
+	color: orange;
 }
 
 .var-replace {
-  display: block;
-  padding: 8px 10px;
-  border: 2px solid #f0f0f0;
-  border-radius: 10px;
-  font-size: 14px;
+	display: block;
+	padding: 8px 10px;
+	border: 2px solid #f0f0f0;
+	border-radius: 10px;
+	font-size: 14px;
 }

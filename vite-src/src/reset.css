@@ -115,9 +115,10 @@ video {
 }
 
 html {
-	font-family: system-ui, -apple-system, "Segoe UI", roboto, ubuntu, cantarell,
-		"Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-		"Segoe UI Symbol", "Noto Color Emoji";
+	font-family:
+		system-ui, -apple-system, "Segoe UI", roboto, ubuntu, cantarell, "Noto Sans",
+		sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+		"Noto Color Emoji";
 	font-size: 1rem;
 	font-weight: 400;
 	line-height: 1.5;

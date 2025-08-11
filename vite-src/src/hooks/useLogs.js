@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
 import { events, os } from "@neutralinojs/lib";
-import { terminalEscapeCodesToHTML } from '../utils/terminal.js';
+import { useEffect, useState } from "react";
+import { terminalEscapeCodesToHTML } from "../utils/terminal.js";
 
 /**
  * Hook for managing logs from a spawned process
@@ -9,41 +9,44 @@ import { terminalEscapeCodesToHTML } from '../utils/terminal.js';
  * @returns {[string, string]} Raw logs and HTML formatted logs
  */
 export function useLogs(proc, setProc) {
-  const [logs, setLogs] = useState("");
+	const [logs, setLogs] = useState("");
 
-  useEffect(() => {
-    if (!proc) {
-      return;
-    }
+	useEffect(() => {
+		if (!proc) {
+			return;
+		}
 
-    setLogs("");
+		setLogs("");
 
-    /**
-     * @param {CustomEvent<any>} evt
-     */
-    function handler(evt) {
-      if (proc?.id == evt.detail.id) {
-        switch (evt.detail.action) {
-          case 'stdOut':
-            setLogs((l) => l + evt.detail.data);
-            break;
-          case 'stdErr':
-            setLogs((l) => l + evt.detail.data);
-            break;
-          case 'exit':
-            setLogs((l) => l + `Process terminated with exit code: ${evt.detail.data}`);
-            setProc(null);
-            break;
-        }
-      }
-    }
+		/**
+		 * @param {CustomEvent<any>} evt
+		 */
+		function handler(evt) {
+			if (proc?.id == evt.detail.id) {
+				switch (evt.detail.action) {
+					case "stdOut":
+						setLogs((l) => l + evt.detail.data);
+						break;
+					case "stdErr":
+						setLogs((l) => l + evt.detail.data);
+						break;
+					case "exit":
+						setLogs(
+							(l) =>
+								l + `Process terminated with exit code: ${evt.detail.data}`,
+						);
+						setProc(null);
+						break;
+				}
+			}
+		}
 
-    events.on('spawnedProcess', handler);
+		events.on("spawnedProcess", handler);
 
-    return () => {
-      events.off('spawnedProcess', handler);
-    }
-  }, [proc]);
+		return () => {
+			events.off("spawnedProcess", handler);
+		};
+	}, [proc]);
 
-  return [logs, terminalEscapeCodesToHTML(logs)];
+	return [logs, terminalEscapeCodesToHTML(logs)];
 }
