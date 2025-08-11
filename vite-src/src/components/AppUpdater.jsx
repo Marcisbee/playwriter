@@ -1,4 +1,4 @@
-import { app, filesystem, os } from "@neutralinojs/lib";
+import { app, os } from "@neutralinojs/lib";
 import React, { useEffect, useMemo, useState } from "react";
 
 /**
