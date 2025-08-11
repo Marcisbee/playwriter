@@ -211,7 +211,7 @@ export function AppUpdater() {
 				</div>
 			)}
 
-			{updating && updateLog && (
+			{(updating || error) && updateLog && (
 				<pre
 					style={{
 						width: "100%",
