@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Download the Playwriter.zip archive
-curl -L -o Playwriter.zip "https://github.com/Marcisbee/playwriter/releases/download/v0.1.8/Playwriter.zip"
+curl -L -o Playwriter.zip "https://github.com/Marcisbee/playwriter/releases/download/v0.1.9/Playwriter.zip"
 
 # Extract the archive to the current directory
 unzip -o Playwriter.zip
