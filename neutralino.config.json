@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
   "applicationId": "js.neutralino.zero",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "defaultMode": "window",
   "documentRoot": "/vite-src/dist/",
   "url": "/",
