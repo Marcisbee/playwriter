@@ -36,6 +36,7 @@ export function useAuthList(proc, reset, cwd) {
 				await Promise.all(
 					entries
 						.filter((entry) => entry.type === "DIRECTORY")
+						.sort((a, b) => a.path.localeCompare(b.path))
 						.map(async (entry) => {
 							const absDir = entry.path;
 							try {
