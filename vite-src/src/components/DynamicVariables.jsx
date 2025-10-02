@@ -1,25 +1,213 @@
 // @ts-check
 import { filesystem, os } from "@neutralinojs/lib";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 /**
  * @param {{ cwd: string }} props
  */
 export function DynamicVariables({ cwd }) {
+	// Test file list / selection
 	const [tests, reloadTests] = useTestList(cwd);
-	const [selectedTest, setSelectedTest] = useState(null); // State to track the selected test file path
+	const [selectedTest, setSelectedTest] = useState(
+		/** @type {string|null} */ (null),
+	);
 
-	// Function to handle closing the EnvVarPanel
+	// Environment variable list
+	const [envVars, setEnvVars] = useState(/** @type {string[]} */ ([]));
+
+	// Dynamic variable creation state (moved outside the EnvVarPanel)
+	const [types, setTypes] = useState(/** @type {string[]} */ ([]));
+	const [loadingTypes, setLoadingTypes] = useState(true);
+	const [newVarName, setNewVarName] = useState("");
+	const [newVarType, setNewVarType] = useState("");
+
+	// Reload env vars
+	const reloadEnvVars = useCallback(async () => {
+		if (!cwd) return;
+		const configPath = `${cwd}/env.config`;
+		try {
+			const content = await filesystem.readFile(configPath);
+			const lines = content.split("\n");
+			const vars = lines
+				.map((line) => line.trim())
+				.filter((line) => line && line.includes("="))
+				.map((line) => line.split("=")[0].trim())
+				.filter((key) => key);
+			setEnvVars(vars);
+		} catch {
+			setEnvVars([]);
+		}
+	}, [cwd]);
+
+	useEffect(() => {
+		reloadEnvVars();
+	}, [reloadEnvVars]);
+
+	// Fetch available types once (or when cwd changes)
+	useEffect(() => {
+		async function fetchTypes() {
+			if (!cwd) return;
+			setLoadingTypes(true);
+			try {
+				const cmd = `PLAYWRIGHT_FORCE_TTY=0 FORCE_COLOR=0 ./tasks.sh types`;
+				const result = await os.execCommand(cmd, { cwd });
+				setTypes(JSON.parse(result.stdOut.split("\n")[1]) || []);
+			} catch (error) {
+				console.error("Error spawning types process:", error);
+				setTypes([]);
+			} finally {
+				setLoadingTypes(false);
+			}
+		}
+		fetchTypes();
+	}, [cwd]);
+
+	const normalizedNewVarName = newVarName
+		.trim()
+		.toUpperCase()
+		.replace(/[^A-Z0-9_]/g, "_");
+	const duplicateVar =
+		!!normalizedNewVarName && envVars.includes(normalizedNewVarName);
+
+	// Add new variable (same logic moved from EnvVarPanel)
+	async function addVariable() {
+		try {
+			const rawName = newVarName.trim();
+			if (!rawName || !newVarType) return;
+
+			const varName = rawName.toUpperCase().replace(/[^A-Z0-9_]/g, "_");
+			if (envVars.includes(varName)) {
+				alert(`Variable ${varName} already exists.`);
+				return;
+			}
+
+			const configPath = `${cwd}/env.config`;
+			let existing = "";
+			try {
+				existing = await filesystem.readFile(configPath);
+			} catch {
+				// file may not exist yet
+			}
+
+			let toWrite = existing;
+			if (toWrite && !/\n$/.test(toWrite)) {
+				toWrite += "\n";
+			}
+			toWrite += `${varName}=${newVarType}\n`;
+
+			await filesystem.writeFile(configPath, toWrite);
+			setEnvVars((prev) => [...prev, varName]);
+			setNewVarName("");
+			setNewVarType("");
+			alert(`Added variable ${varName} with type/value '${newVarType}'.`);
+		} catch (error) {
+			console.error("Error adding variable:", error);
+			alert("Error adding variable: " + error.message);
+		}
+	}
+
 	const handleClosePanel = () => {
-		setSelectedTest(null); // Clear the selected test
-		reloadTests(); // Optionally reload the test list if changes might have occurred
+		setSelectedTest(null);
+		reloadTests();
+		// Reload env vars in case a test modified env.config
+		reloadEnvVars();
 	};
 
 	return (
 		<div>
+			{/* Dynamic variable creation UI moved here, always visible */}
+			<section style={{ marginBottom: "20px" }}>
+				<details>
+					<summary>
+						Create new dynamic variable
+					</summary>
+					<div style={{ padding: "8px 10px" }}>
+						<label style={{ display: "block", marginBottom: "6px" }}>
+							<span>Variable name (UPPER_CASE recommended)</span>
+							<br />
+							<input
+								type="text"
+								value={newVarName}
+								onChange={(e) => setNewVarName(e.target.value)}
+								placeholder="MY_VARIABLE"
+								style={{ width: "100%", maxWidth: "320px" }}
+								autoComplete="off"
+							/>
+						</label>
+						<label style={{ display: "block", marginBottom: "6px" }}>
+							<span>Type / Value</span>
+							<br />
+							<select
+								value={newVarType}
+								onChange={(e) => setNewVarType(e.target.value)}
+								style={{ width: "100%", maxWidth: "320px" }}
+							>
+								<option value="">
+									{loadingTypes ? "Loading..." : "Select a type"}
+								</option>
+								{types.map((t) => (
+									<option key={t} value={t}>
+										{t}
+									</option>
+								))}
+							</select>
+							{!loadingTypes && !types.length && (
+								<span
+									style={{
+										display: "block",
+										fontSize: "0.75em",
+										color: "#666",
+										marginTop: "4px",
+									}}
+								>
+									No types detected (ensure tasks.sh types works)
+								</span>
+							)}
+						</label>
+						<button
+							type="button"
+							onClick={addVariable}
+							style={
+								!newVarName ||
+								!newVarType ||
+								duplicateVar ||
+								loadingTypes ||
+								!types.length
+									? { cursor: "not-allowed" }
+									: { backgroundColor: "dodgerblue", color: "white" }
+							}
+							disabled={
+								!newVarName ||
+								!newVarType ||
+								duplicateVar ||
+								loadingTypes ||
+								!types.length
+							}
+						>
+							Add variable
+						</button>
+						{duplicateVar && (
+							<div
+								style={{ color: "red", fontSize: "0.75em", marginTop: "4px" }}
+							>
+								Variable already exists.
+							</div>
+						)}
+						{newVarName && !duplicateVar && (
+							<div
+								style={{ fontSize: "0.7em", marginTop: "4px", color: "#555" }}
+							>
+								Saved as {normalizedNewVarName}={newVarType || "<type>"}
+							</div>
+						)}
+					</div>
+				</details>
+			</section>
+
+			{/* Test selection OR panel */}
 			{!selectedTest ? (
 				<>
-					<h3>Select a Test File:</h3>
+					<h3 style={{ marginTop: 0 }}>Select a Test File:</h3>
 					{tests.length > 0 ? (
 						<ul>
 							{tests.map((testPath) => (
@@ -32,22 +220,23 @@ export function DynamicVariables({ cwd }) {
 											textAlign: "left",
 										}}
 									>
-										{/* Display a more user-friendly name, e.g., relative path */}
 										{testPath.replace(cwd + "/", "")}
 									</button>
 								</li>
 							))}
 						</ul>
 					) : (
-						<p>No test files found in 'session' or 'tests' directories.</p>
+						<p style={{ fontSize: "0.9em" }}>
+							No test files found in 'session' or 'tests' directories.
+						</p>
 					)}
 				</>
 			) : (
-				// Render EnvVarPanel when a test is selected
 				<EnvVarPanel
 					cwd={cwd}
 					filePath={selectedTest}
-					onClose={handleClosePanel} // Pass the close handler
+					onClose={handleClosePanel}
+					envVars={envVars}
 				/>
 			)}
 		</div>
@@ -68,93 +257,93 @@ function escapeHtml(unsafe) {
 // Function to generate highlighted preview HTML based on matches within quotes
 function generateHighlightedPreview(content, textToHighlight) {
 	if (!textToHighlight) {
-		return escapeHtml(content); // No highlighting needed, just escape
+		return escapeHtml(content);
 	}
 
 	const highlights = [];
-	// Regex to find strings, capturing content within quotes
 	const singleQuoteRegex = /'([^']*)'/g;
 	const doubleQuoteRegex = /"([^"]*)"/g;
-	const backtickRegex = /`([^`]*)`/g; // Template literals
+	const backtickRegex = /`([^`]*)`/g;
 
 	const findHighlightsInRegex = (regex) => {
 		let match;
 		while ((match = regex.exec(content)) !== null) {
-			const fullMatch = match[0]; // e.g., 'some text'
-			const innerContent = match[1]; // e.g., some text
-			const quoteType = fullMatch[0]; // e.g., '
-			const matchStartIndex = match.index; // Start index of the full quoted string in the original content
+			const fullMatch = match[0];
+			const innerContent = match[1];
+			const quoteType = fullMatch[0];
+			const matchStartIndex = match.index;
 
 			let innerIndex = innerContent.indexOf(textToHighlight);
 			while (innerIndex !== -1) {
-				// Calculate the absolute start/end index in the original content string
 				const start = matchStartIndex + quoteType.length + innerIndex;
 				const end = start + textToHighlight.length;
 				highlights.push({ start, end });
-				// Find the next occurrence within the same innerContent
 				innerIndex = innerContent.indexOf(textToHighlight, innerIndex + 1);
 			}
 		}
 	};
 
-	// Find highlights within each type of quote
 	findHighlightsInRegex(singleQuoteRegex);
 	findHighlightsInRegex(doubleQuoteRegex);
 	findHighlightsInRegex(backtickRegex);
 
-	// Sort highlights by start index to process the string sequentially
 	highlights.sort((a, b) => a.start - b.start);
 
 	let resultHtml = "";
 	let lastIndex = 0;
 
 	for (const highlight of highlights) {
-		// Add text before the current highlight (escaped)
 		resultHtml += escapeHtml(content.substring(lastIndex, highlight.start));
-		// Add the highlighted text (escaped) wrapped in a span
-		// Using inline style for simplicity, could use a CSS class
-		resultHtml += `<span style="background-color: yellow;">${escapeHtml(content.substring(highlight.start, highlight.end))}</span>`;
-		// Update the index to the end of the current highlight
+		resultHtml += `<span style="background-color: yellow;">${escapeHtml(
+			content.substring(highlight.start, highlight.end),
+		)}</span>`;
 		lastIndex = highlight.end;
 	}
 
-	// Add any remaining text after the last highlight (escaped)
 	resultHtml += escapeHtml(content.substring(lastIndex));
-
 	return resultHtml;
 }
+
 /**
  * Component for suggesting environment variable replacements
- * @param {{ filePath: string, onClose: () => void, cwd: string }} props
+ * @param {{ filePath: string, onClose: () => void, cwd: string, envVars: string[] }} props
  */
-function EnvVarPanel({ filePath, onClose, cwd }) {
+function EnvVarPanel({ filePath, onClose, cwd, envVars }) {
 	const [fileContent, setFileContent] = useState("");
 	const [loading, setLoading] = useState(true);
 	const [selectedVar, setSelectedVar] = useState("");
 	const [customValue, setCustomValue] = useState("");
 	const [highlightedContent, setHighlightedContent] = useState("");
+	const [hasMatches, setHasMatches] = useState(false);
 
-	const [hasMatches, setHasMatches] = useState(false); // State to track if customValue has matches in strings
-	const [envVars, setEnvVars] = useState([]);
+	// Load file content
+	useEffect(() => {
+		async function loadFile() {
+			try {
+				setLoading(true);
+				if (!filePath) return;
+				const content = await filesystem.readFile(filePath);
+				setFileContent(content);
+			} catch (error) {
+				console.error("Error reading file:", error);
+			} finally {
+				setLoading(false);
+			}
+		}
+		loadFile();
+	}, [filePath]);
 
-	// New state for dynamic variable creation
-	const [types, setTypes] = useState([]);
-	const [loadingTypes, setLoadingTypes] = useState(true);
-	const [newVarName, setNewVarName] = useState("");
-	const [newVarType, setNewVarType] = useState("");
-
-	// Generate highlighted preview when content or value changes
+	// Highlight preview
 	useEffect(() => {
 		if (fileContent && customValue) {
 			const previewHtml = generateHighlightedPreview(fileContent, customValue);
 			setHighlightedContent(previewHtml);
 		} else {
-			// If no value to replace or no content, show plain escaped content
 			setHighlightedContent(escapeHtml(fileContent));
 		}
 	}, [fileContent, customValue]);
 
-	// Check for matches when fileContent or customValue changes
+	// Detect matches
 	useEffect(() => {
 		if (!customValue || !fileContent) {
 			setHasMatches(false);
@@ -164,141 +353,31 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 		let foundMatch = false;
 		const singleQuoteRegex = /'([^']*)'/g;
 		const doubleQuoteRegex = /"([^"]*)"/g;
-		const backtickRegex = /`([^`]*)`/g; // Template literals
+		const backtickRegex = /`([^`]*)`/g;
 
-		const checkRegexForMatches = (regex) => {
+		const checkRegex = (regex) => {
 			let match;
 			while ((match = regex.exec(fileContent)) !== null) {
-				const innerContent = match[1]; // e.g., some text
-				if (innerContent.includes(customValue)) {
+				if (match[1].includes(customValue)) {
 					foundMatch = true;
-					return; // Exit early once a match is found in this regex
+					return;
 				}
 			}
 		};
 
-		checkRegexForMatches(singleQuoteRegex);
-		if (foundMatch) {
-			setHasMatches(true);
-			return;
-		}
+		checkRegex(singleQuoteRegex);
+		if (!foundMatch) checkRegex(doubleQuoteRegex);
+		if (!foundMatch) checkRegex(backtickRegex);
 
-		checkRegexForMatches(doubleQuoteRegex);
-		if (foundMatch) {
-			setHasMatches(true);
-			return;
-		}
-
-		checkRegexForMatches(backtickRegex);
 		setHasMatches(foundMatch);
 	}, [fileContent, customValue]);
 
-	// Load environment variables from env.config
-	useEffect(() => {
-		async function loadEnvVars() {
-			const configPath = `${cwd}/env.config`;
-			try {
-				const content = await filesystem.readFile(configPath);
-				const lines = content.split("\n");
-				const vars = lines
-					.map((line) => line.trim())
-					.filter((line) => line && line.includes("="))
-					.map((line) => line.split("=")[0].trim())
-					.filter((key) => key);
-				setEnvVars(vars);
-			} catch (error) {
-				console.error(`Error reading or parsing ${configPath}:`, error);
-				setEnvVars([]);
-			}
-		}
-
-		if (cwd) {
-			loadEnvVars();
-		}
-	}, [cwd]); // Reload if cwd changes
-
-	// Load file content when component mounts
-	useEffect(() => {
-		async function loadFile() {
-			try {
-				setLoading(true);
-				if (!filePath) return;
-
-				const content = await filesystem.readFile(filePath);
-				setFileContent(content);
-			} catch (error) {
-				console.error("Error reading file:", error);
-			} finally {
-				setLoading(false);
-			}
-		}
-
-		loadFile();
-	}, [filePath]);
-
-	// Fetch available types using a spawned process (similar approach to ProjectGenerate)
-	useEffect(() => {
-		async function fetchTypes() {
-			if (!cwd) return;
-			setLoadingTypes(true);
-			try {
-				const cmd = `PLAYWRIGHT_FORCE_TTY=0 FORCE_COLOR=0 ./tasks.sh types`;
-				const result = await os.execCommand(cmd, { cwd });
-				setTypes(JSON.parse(result.stdOut.split("\n")[1]) || []);
-			} catch (error) {
-				console.error("Error spawning types process:", error);
-			} finally {
-				setLoadingTypes(false);
-			}
-		}
-		fetchTypes();
-	}, [cwd]);
-
-	// Add a new dynamic variable to env.config
-	async function addVariable() {
-		try {
-			const rawName = newVarName.trim();
-			if (!rawName || !newVarType) return;
-
-			const varName = rawName.toUpperCase().replace(/[^A-Z0-9_]/g, "_");
-			if (envVars.includes(varName)) {
-				alert(`Variable ${varName} already exists.`);
-				return;
-			}
-
-			const configPath = `${cwd}/env.config`;
-			let existing = "";
-			try {
-				existing = await filesystem.readFile(configPath);
-			} catch {
-				// If file doesn't exist, we'll create it
-			}
-
-			let toWrite = existing;
-			if (toWrite && !/\n$/.test(toWrite)) {
-				toWrite += "\n";
-			}
-			toWrite += `${varName}=${newVarType}\n`;
-
-			await filesystem.writeFile(configPath, toWrite);
-			setEnvVars((prev) => [...prev, varName]);
-			setNewVarName("");
-			setNewVarType("");
-			alert(`Added variable ${varName} with type/value '${newVarType}'.`);
-		} catch (error) {
-			console.error("Error adding variable:", error);
-			alert("Error adding variable: " + error.message);
-		}
-	}
-
-	// Apply the replacement to the file
+	// Apply replacement
 	async function applyReplacement() {
 		try {
 			if (!customValue || !selectedVar) return;
-
 			let newContent = fileContent;
 
-			// Find all string literals
 			const singleQuoteRegex = /'([^']*)'/g;
 			const doubleQuoteRegex = /"([^"]*)"/g;
 			const backtickRegex = /`([^`]*)`/g;
@@ -306,12 +385,9 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 			const replaceInRegex = (regex) => {
 				let match;
 				const positions = [];
-
-				// First collect all positions to avoid offset issues
 				while ((match = regex.exec(newContent)) !== null) {
 					const fullMatch = match[0];
 					const innerContent = match[1];
-
 					if (innerContent.includes(customValue)) {
 						positions.push({
 							start: match.index,
@@ -322,21 +398,17 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 						});
 					}
 				}
-
-				// Sort from end to start
 				positions.sort((a, b) => b.start - a.start);
-
 				for (const pos of positions) {
 					const { start, end, quoteType, innerContent } = pos;
-
 					const parts = innerContent.split(customValue);
 					let newValue;
+					// We always convert to a template literal
 					if (quoteType === "`") {
 						newValue = "`" + parts.join(`\${process.env.${selectedVar}}`) + "`";
 					} else {
 						newValue = "`" + parts.join(`\${process.env.${selectedVar}}`) + "`";
 					}
-
 					newContent =
 						newContent.substring(0, start) +
 						newValue +
@@ -366,13 +438,6 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 			</div>
 		);
 	}
-
-	const normalizedNewVarName = newVarName
-		.trim()
-		.toUpperCase()
-		.replace(/[^A-Z0-9_]/g, "_");
-	const duplicateVar =
-		normalizedNewVarName && envVars.includes(normalizedNewVarName);
 
 	return (
 		<div className="var-replace">
@@ -416,96 +481,6 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 						</select>
 					</label>
 				</div>
-
-				<details>
-					<summary style={{ fontSize: "0.95em" }}>
-						Create new dynamic variable
-					</summary>
-					<div style={{ padding: "8px 10px" }}>
-						<label style={{ display: "block", marginBottom: "6px" }}>
-							<span>Variable name (UPPER_CASE recommended)</span>
-							<br />
-							<input
-								type="text"
-								value={newVarName}
-								onChange={(e) => setNewVarName(e.target.value)}
-								placeholder="MY_VARIABLE"
-								style={{ width: "100%", maxWidth: "300px" }}
-								autoComplete="off"
-							/>
-						</label>
-						<label style={{ display: "block", marginBottom: "6px" }}>
-							<span>Type / Value</span>
-							<br />
-							<select
-								value={newVarType}
-								onChange={(e) => setNewVarType(e.target.value)}
-								style={{ width: "100%", maxWidth: "300px" }}
-							>
-								<option value="">
-									{loadingTypes ? "Loading..." : "Select a type"}
-								</option>
-								{types.map((t) => (
-									<option key={t} value={t}>
-										{t}
-									</option>
-								))}
-							</select>
-							{!loadingTypes && !types.length && (
-								<span
-									style={{
-										display: "block",
-										fontSize: "0.75em",
-										color: "#666",
-									}}
-								>
-									No types detected (ensure tasks.sh types works)
-								</span>
-							)}
-						</label>
-						<button
-							type="button"
-							onClick={addVariable}
-							style={
-								!newVarName ||
-								!newVarType ||
-								duplicateVar ||
-								loadingTypes ||
-								!types.length
-									? {
-											cursor: "not-allowed",
-										}
-									: {
-											backgroundColor: "dodgerblue",
-											color: "white",
-										}
-							}
-							disabled={
-								!newVarName ||
-								!newVarType ||
-								duplicateVar ||
-								loadingTypes ||
-								!types.length
-							}
-						>
-							Add variable
-						</button>
-						{duplicateVar && (
-							<div
-								style={{ color: "red", fontSize: "0.75em", marginTop: "4px" }}
-							>
-								Variable already exists.
-							</div>
-						)}
-						{newVarName && !duplicateVar && (
-							<div
-								style={{ fontSize: "0.7em", marginTop: "4px", color: "#555" }}
-							>
-								Saved as {normalizedNewVarName}={newVarType || "<type>"}
-							</div>
-						)}
-					</div>
-				</details>
 			</div>
 
 			<div style={{ marginTop: "20px" }}>
@@ -513,10 +488,11 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 					onClick={applyReplacement}
 					disabled={!selectedVar || !customValue || !hasMatches}
 				>
-					Apply Replacement{!hasMatches && customValue && " (No matches found)"}
+					Apply Replacement
+					{!hasMatches && customValue && " (No matches found)"}
 				</button>
 				<button onClick={onClose} style={{ marginLeft: "10px" }}>
-					Cancel
+					Back
 				</button>
 			</div>
 
@@ -550,7 +526,6 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 						fontSize: "0.85em",
 					}}
 				>
-					{/* Render the HTML with highlights */}
 					<code dangerouslySetInnerHTML={{ __html: highlightedContent }} />
 				</pre>
 			</div>
@@ -569,44 +544,35 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 
 /**
  * Reads all files recursively from a given directory.
- * @param {string} dirPath The path to the directory to read.
- * @returns {Promise<string[]>} A promise that resolves with an array of file paths.
+ * @param {string} dirPath
+ * @returns {Promise<string[]>}
  */
 async function readFilesRecursively(dirPath) {
 	let files = [];
 	try {
 		const entries = await filesystem.readDirectory(dirPath);
-
 		for (const entry of entries) {
-			// Construct the full path using the directory path and the entry name
-			// Assuming '/' works as a separator, or use os.getPathSeparator() if needed
 			const fullPath = `${dirPath}/${entry.entry}`;
-
 			if (entry.type === "FILE") {
 				files.push(fullPath);
 			} else if (entry.type === "DIRECTORY") {
-				// If it's a directory, recurse into it
 				const subFiles = await readFilesRecursively(fullPath);
-				files = files.concat(subFiles); // Add the files found in the subdirectory
+				files = files.concat(subFiles);
 			}
 		}
 	} catch (error) {
-		// Log the error or handle it appropriately
 		console.error(`Error reading directory ${dirPath}:`, error);
-		// Depending on requirements, you might want to re-throw the error
-		// or return the files collected so far, or an empty array.
-		// throw error; // Option: re-throw
 	}
 	return files;
 }
 
 /**
- * Hook for managing auth list from the project directory
- * @param {string} cwd Current working directory
- * @returns {[any[], Function]} Auth list and reload function
+ * Hook for managing test list from the project directory
+ * @param {string} cwd
+ * @returns {[string[], Function]}
  */
 export function useTestList(cwd) {
-	const [list, setList] = useState([]);
+	const [list, setList] = useState(/** @type {string[]} */ ([]));
 
 	useEffect(() => {
 		reloadAuthList();
@@ -614,7 +580,6 @@ export function useTestList(cwd) {
 
 	useEffect(() => {
 		window.addEventListener("focus", reloadAuthList);
-
 		return () => {
 			window.removeEventListener("focus", reloadAuthList);
 		};
@@ -628,10 +593,9 @@ export function useTestList(cwd) {
 			const entriesTests = (await readFilesRecursively(`${cwd}/tests`)).filter(
 				(filePath) => filePath.endsWith(".ts"),
 			);
-
 			setList([...entriesSession, ...entriesTests].sort());
 		} catch (error) {
-			console.error("Error loading auth list:", error);
+			console.error("Error loading test list:", error);
 			setList([]);
 		}
 	}
