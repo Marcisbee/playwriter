@@ -96,7 +96,12 @@ export function ProjectGenerate({ cwd }) {
 				<label>
 					<span>Save test file location</span>
 					<br />
-					<input type="text" value={output} readOnly />
+					<input
+						type="text"
+						value={output}
+						readOnly
+						placeholder="tests/000-feature/000-step.ts"
+					/>
 				</label>
 				<button type="button" onClick={selectTestFile}>
 					select

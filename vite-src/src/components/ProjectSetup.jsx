@@ -93,7 +93,12 @@ export function ProjectSetup({ cwd }) {
 				<label>
 					<span>Save auth folder location</span>
 					<br />
-					<input type="text" value={setupDir} readOnly />
+					<input
+						type="text"
+						value={setupDir}
+						readOnly
+						placeholder="setup/000-scope"
+					/>
 				</label>
 				<button type="button" onClick={selectSetupDir}>
 					select
