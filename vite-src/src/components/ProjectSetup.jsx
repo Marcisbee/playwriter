@@ -97,7 +97,7 @@ export function ProjectSetup({ cwd }) {
 						type="text"
 						value={setupDir}
 						readOnly
-						placeholder="setup/000-scope"
+						placeholder="session/000-scope"
 					/>
 				</label>
 				<button type="button" onClick={selectSetupDir}>
