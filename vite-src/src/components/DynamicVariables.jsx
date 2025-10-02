@@ -137,6 +137,12 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 	const [hasMatches, setHasMatches] = useState(false); // State to track if customValue has matches in strings
 	const [envVars, setEnvVars] = useState([]);
 
+	// New state for dynamic variable creation
+	const [types, setTypes] = useState([]);
+	const [loadingTypes, setLoadingTypes] = useState(true);
+	const [newVarName, setNewVarName] = useState("");
+	const [newVarType, setNewVarType] = useState("");
+
 	// Generate highlighted preview when content or value changes
 	useEffect(() => {
 		if (fileContent && customValue) {
@@ -195,17 +201,14 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 				const content = await filesystem.readFile(configPath);
 				const lines = content.split("\n");
 				const vars = lines
-					.map((line) => line.trim()) // Trim whitespace
-					.filter((line) => line && line.includes("=")) // Ensure line is not empty and contains '='
-					.map((line) => line.split("=")[0].trim()) // Extract the key part
-					.filter((key) => key); // Ensure key is not empty
-				setEnvVars(vars); // Set the state with sorted keys
+					.map((line) => line.trim())
+					.filter((line) => line && line.includes("="))
+					.map((line) => line.split("=")[0].trim())
+					.filter((key) => key);
+				setEnvVars(vars);
 			} catch (error) {
 				console.error(`Error reading or parsing ${configPath}:`, error);
-				// Optionally set an empty array or handle the error state
 				setEnvVars([]);
-				// Maybe show an error message to the user
-				// alert(`Could not load environment variables from ${configPath}. Please ensure the file exists and is readable.`);
 			}
 		}
 
@@ -233,6 +236,61 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 		loadFile();
 	}, [filePath]);
 
+	// Fetch available types using a spawned process (similar approach to ProjectGenerate)
+	useEffect(() => {
+		async function fetchTypes() {
+			if (!cwd) return;
+			setLoadingTypes(true);
+			try {
+				const cmd = `PLAYWRIGHT_FORCE_TTY=0 FORCE_COLOR=0 ./tasks.sh types`;
+				const result = await os.execCommand(cmd, { cwd });
+				setTypes(JSON.parse(result.stdOut.split("\n")[1]) || []);
+			} catch (error) {
+				console.error("Error spawning types process:", error);
+			} finally {
+				setLoadingTypes(false);
+			}
+		}
+		fetchTypes();
+	}, [cwd]);
+
+	// Add a new dynamic variable to env.config
+	async function addVariable() {
+		try {
+			const rawName = newVarName.trim();
+			if (!rawName || !newVarType) return;
+
+			const varName = rawName.toUpperCase().replace(/[^A-Z0-9_]/g, "_");
+			if (envVars.includes(varName)) {
+				alert(`Variable ${varName} already exists.`);
+				return;
+			}
+
+			const configPath = `${cwd}/env.config`;
+			let existing = "";
+			try {
+				existing = await filesystem.readFile(configPath);
+			} catch {
+				// If file doesn't exist, we'll create it
+			}
+
+			let toWrite = existing;
+			if (toWrite && !/\n$/.test(toWrite)) {
+				toWrite += "\n";
+			}
+			toWrite += `${varName}=${newVarType}\n`;
+
+			await filesystem.writeFile(configPath, toWrite);
+			setEnvVars((prev) => [...prev, varName]);
+			setNewVarName("");
+			setNewVarType("");
+			alert(`Added variable ${varName} with type/value '${newVarType}'.`);
+		} catch (error) {
+			console.error("Error adding variable:", error);
+			alert("Error adding variable: " + error.message);
+		}
+	}
+
 	// Apply the replacement to the file
 	async function applyReplacement() {
 		try {
@@ -259,33 +317,26 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 							start: match.index,
 							end: match.index + fullMatch.length,
 							fullMatch,
-							quoteType: fullMatch[0], // First character is the quote type
+							quoteType: fullMatch[0],
 							innerContent,
 						});
 					}
 				}
 
-				// Sort from end to start to avoid offset issues
+				// Sort from end to start
 				positions.sort((a, b) => b.start - a.start);
 
-				// Now replace them
 				for (const pos of positions) {
-					const { start, end, fullMatch, quoteType, innerContent } = pos;
+					const { start, end, quoteType, innerContent } = pos;
 
-					// Split the content by what we're replacing
 					const parts = innerContent.split(customValue);
-
-					// Create a template literal with the environment variable
 					let newValue;
 					if (quoteType === "`") {
-						// It's already a template literal
 						newValue = "`" + parts.join(`\${process.env.${selectedVar}}`) + "`";
 					} else {
-						// Convert to a template literal
 						newValue = "`" + parts.join(`\${process.env.${selectedVar}}`) + "`";
 					}
 
-					// Replace in the content
 					newContent =
 						newContent.substring(0, start) +
 						newValue +
@@ -293,12 +344,10 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 				}
 			};
 
-			// Apply regex replacements for each quote type
 			replaceInRegex(singleQuoteRegex);
 			replaceInRegex(doubleQuoteRegex);
 			replaceInRegex(backtickRegex);
 
-			// Save the file
 			await filesystem.writeFile(filePath, newContent);
 			alert(
 				`Applied environment variable replacements for "${customValue}" with process.env.${selectedVar}`,
@@ -318,6 +367,13 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 		);
 	}
 
+	const normalizedNewVarName = newVarName
+		.trim()
+		.toUpperCase()
+		.replace(/[^A-Z0-9_]/g, "_");
+	const duplicateVar =
+		normalizedNewVarName && envVars.includes(normalizedNewVarName);
+
 	return (
 		<div className="var-replace">
 			<p>
@@ -335,9 +391,9 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 							onChange={(e) => setCustomValue(e.target.value)}
 							placeholder="Enter text to replace"
 							style={{ width: "100%", maxWidth: "300px" }}
-							autocomplete="off"
-							autocorrect="off"
-							autocapitalize="off"
+							autoComplete="off"
+							autoCorrect="off"
+							autoCapitalize="off"
 						/>
 					</label>
 				</div>
@@ -360,6 +416,96 @@ function EnvVarPanel({ filePath, onClose, cwd }) {
 						</select>
 					</label>
 				</div>
+
+				<details>
+					<summary style={{ fontSize: "0.95em" }}>
+						Create new dynamic variable
+					</summary>
+					<div style={{ padding: "8px 10px" }}>
+						<label style={{ display: "block", marginBottom: "6px" }}>
+							<span>Variable name (UPPER_CASE recommended)</span>
+							<br />
+							<input
+								type="text"
+								value={newVarName}
+								onChange={(e) => setNewVarName(e.target.value)}
+								placeholder="MY_VARIABLE"
+								style={{ width: "100%", maxWidth: "300px" }}
+								autoComplete="off"
+							/>
+						</label>
+						<label style={{ display: "block", marginBottom: "6px" }}>
+							<span>Type / Value</span>
+							<br />
+							<select
+								value={newVarType}
+								onChange={(e) => setNewVarType(e.target.value)}
+								style={{ width: "100%", maxWidth: "300px" }}
+							>
+								<option value="">
+									{loadingTypes ? "Loading..." : "Select a type"}
+								</option>
+								{types.map((t) => (
+									<option key={t} value={t}>
+										{t}
+									</option>
+								))}
+							</select>
+							{!loadingTypes && !types.length && (
+								<span
+									style={{
+										display: "block",
+										fontSize: "0.75em",
+										color: "#666",
+									}}
+								>
+									No types detected (ensure tasks.sh types works)
+								</span>
+							)}
+						</label>
+						<button
+							type="button"
+							onClick={addVariable}
+							style={
+								!newVarName ||
+								!newVarType ||
+								duplicateVar ||
+								loadingTypes ||
+								!types.length
+									? {
+											cursor: "not-allowed",
+										}
+									: {
+											backgroundColor: "dodgerblue",
+											color: "white",
+										}
+							}
+							disabled={
+								!newVarName ||
+								!newVarType ||
+								duplicateVar ||
+								loadingTypes ||
+								!types.length
+							}
+						>
+							Add variable
+						</button>
+						{duplicateVar && (
+							<div
+								style={{ color: "red", fontSize: "0.75em", marginTop: "4px" }}
+							>
+								Variable already exists.
+							</div>
+						)}
+						{newVarName && !duplicateVar && (
+							<div
+								style={{ fontSize: "0.7em", marginTop: "4px", color: "#555" }}
+							>
+								Saved as {normalizedNewVarName}={newVarType || "<type>"}
+							</div>
+						)}
+					</div>
+				</details>
 			</div>
 
 			<div style={{ marginTop: "20px" }}>
