@@ -20,40 +20,60 @@ export function ProjectTest({ cwd }) {
 	const [tests, setTests] = useState([]);
 	const [testsRunning, setTestsRunning] = useState([]);
 	const [testsStatus, setTestsStatus] = useState([]);
+	const [testError, setTestError] = useState("");
 
 	/**
 	 * @param {boolean=} filter
 	 */
 	async function getTestList(filter) {
-		const cmd = [
-			`PLAYWRIGHT_FORCE_TTY=0 FORCE_COLOR=0 ./tasks.sh test --reporter="list" --list`,
-			filter && `--grep=${JSON.stringify(`/${grep}/`)}`,
-		].filter(Boolean);
-		const result = await os.execCommand(cmd.join(" "), { cwd });
+		try {
+			setTestError(""); // clear any previous error before attempting
+			const cmd = [
+				`PLAYWRIGHT_FORCE_TTY=0 FORCE_COLOR=0 ./tasks.sh test --reporter="list" --list`,
+				filter && `--grep=${JSON.stringify(`/${grep}/`)}`,
+			].filter(Boolean);
+			const result = await os.execCommand(cmd.join(" "), { cwd });
 
-		if (result.stdErr) {
-			console.error(result.stdErr);
+			if (result.stdErr?.trim()) {
+				console.error(result.stdErr);
+				setTestError(`Failed to list tests:\n${result.stdErr.trim()}`);
+				return [];
+			}
+
+			const lines = result.stdOut.split("\n");
+			const startIndex = lines.findIndex((line) =>
+				/^Listing tests:/.test(line),
+			);
+			const endIndex = lines.findIndex((line) => /^Total: /.test(line));
+
+			if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
+				// Unexpected format
+				setTestError("Could not parse test list output (unexpected format).");
+				return [];
+			}
+
+			const slice = lines.slice(startIndex + 1, endIndex).filter(Boolean);
+
+			const parsed = slice.map((line) => {
+				const [type, path, name] = line.trim().split(" › ");
+
+				return {
+					type: type === "[setup]" ? "auth" : "test",
+					path: path.replace(/^.*file:|:\d+:\d+$/g, "").slice(cwd.length),
+					name,
+				};
+			});
+
+			if (parsed.length > 0) {
+				setTestError(""); // ensure cleared on success
+			}
+
+			return parsed;
+		} catch (err) {
+			console.error("Error while loading tests:", err);
+			setTestError(`Error while loading tests:\n${err.message || String(err)}`);
+			return [];
 		}
-
-		const lines = result.stdOut.split("\n");
-		lines.splice(
-			0,
-			lines.findIndex((line) => /^Listing tests:/.test(line)) + 1,
-		);
-		lines.splice(
-			lines.findIndex((line) => /^Total: /.test(line)),
-			lines.length,
-		);
-
-		return lines.map((line) => {
-			const [type, path, name] = line.trim().split(" › ");
-
-			return {
-				type: type === "[setup]" ? "auth" : "test",
-				path: path.replace(/^.*file:|:\d+:\d+$/g, "").slice(cwd.length),
-				name,
-			};
-		});
 	}
 
 	function getTestStatusList() {
@@ -84,7 +104,17 @@ export function ProjectTest({ cwd }) {
 
 	useLayoutEffect(() => {
 		async function updateTestList() {
-			setTests(await getTestList());
+			const list = await getTestList();
+			setTests(list);
+			if (list.length === 0) {
+				setTestError(
+					(prev) =>
+						prev ||
+						(grep
+							? `No tests matched current grep "${grep}"`
+							: "No tests found."),
+				);
+			}
 		}
 
 		updateTestList();
@@ -181,6 +211,23 @@ export function ProjectTest({ cwd }) {
 				)}
 			</div>
 			<br />
+			{testError && (
+				<pre
+					style={{
+						fontFamily: "monospace",
+						color: "#b00020",
+						fontWeight: "bold",
+						marginBottom: "0.5rem",
+						whiteSpace: "pre",
+						fontSize: 11,
+						padding: 10,
+						backgroundColor: "#fee",
+						borderRadius: 5,
+					}}
+				>
+					{testError}
+				</pre>
+			)}
 			<ul>
 				{testsList.map((test, index) => (
 					<li key={index}>

@@ -7,6 +7,8 @@ export function App() {
 	const recentProjectsKey = "recentProjects";
 	const [recentProjects, setRecentProjects] = useState([]);
 	const [cwd, setCwd] = useState("");
+	const [error, setError] = useState("");
+
 	useEffect(() => {
 		const loadRecent = async () => {
 			try {
@@ -16,54 +18,65 @@ export function App() {
 				}
 			} catch (err) {
 				console.error("Error loading recent projects:", err);
-				// Optionally clear broken storage data
-				// await storage.setData(recentProjectsKey, JSON.stringify([]));
+				setError("Failed to load recent projects list.");
 			}
 		};
 		loadRecent();
-	}, []); // Empty dependency array ensures this runs only once on mount
+	}, []);
+
+	async function validateProject(dir) {
+		try {
+			await filesystem.readFile(dir + "/tasks.sh");
+			return true;
+		} catch (e) {
+			console.error("Project validation failed:", e);
+			return false;
+		}
+	}
 
 	async function selectCdm() {
+		setError("");
 		const entry = await os.showFolderDialog("Select project directory");
 
 		if (!entry) {
 			return;
 		}
 
-		try {
-			const tasksFile = await filesystem.readFile(entry + "/tasks.sh");
-
-			if (!tasksFile) {
-				throw new Error("Project not found");
-			}
-		} catch (e) {
-			console.error(e);
+		const valid = await validateProject(entry);
+		if (!valid) {
+			setError("Selected folder is not a valid project (missing tasks.sh).");
 			return;
 		}
 
 		setCwd(entry);
 		console.log("You have selected:", entry);
-		// Add to recent projects and save
-		const updatedRecent = [...new Set([entry, ...recentProjects])].slice(0, 10); // Keep max 10, add new to front
+		const updatedRecent = [...new Set([entry, ...recentProjects])].slice(0, 10);
 		setRecentProjects(updatedRecent);
 		try {
 			await storage.setData(recentProjectsKey, JSON.stringify(updatedRecent));
 		} catch (err) {
 			console.error("Error saving recent projects:", err);
+			setError("Unable to persist recent projects.");
 		}
 	}
 
 	async function loadProject(projectPath) {
-		// Basic check if path still seems valid (optional, could re-validate fully)
-		if (projectPath) {
-			// We assume the path is valid as it was previously added.
-			// For robustness, you could re-run the validation logic from selectCdm here.
-			setCwd(projectPath);
-		} else {
+		setError("");
+		if (!projectPath) {
 			console.error("Invalid project path selected from recent list.");
-			// Optionally remove the invalid path from the list
+			setError("The selected recent project path is invalid.");
 			await removeProject(projectPath);
+			return;
 		}
+		const valid = await validateProject(projectPath);
+		if (!valid) {
+			setError(
+				"Project no longer valid (tasks.sh missing). It was removed from the recent list.",
+			);
+			await removeProject(projectPath);
+			return;
+		}
+		setCwd(projectPath);
 	}
 
 	async function removeProject(projectPath) {
@@ -73,6 +86,7 @@ export function App() {
 			await storage.setData(recentProjectsKey, JSON.stringify(updatedRecent));
 		} catch (err) {
 			console.error("Error saving recent projects after removal:", err);
+			setError("Failed to update recent projects list.");
 		}
 	}
 
@@ -90,6 +104,18 @@ export function App() {
 				<AppUpdater />
 				<div style={{ flex: 1, alignContent: "center" }}>
 					<button onClick={selectCdm}>Select Project Directory</button>
+					{error && (
+						<div
+							style={{
+								marginTop: "1rem",
+								color: "#b00020",
+								fontWeight: "bold",
+								whiteSpace: "pre-wrap",
+							}}
+						>
+							{error}
+						</div>
+					)}
 				</div>
 				{recentProjects.length > 0 && (
 					<div
@@ -125,7 +151,9 @@ export function App() {
 											overflow: "hidden",
 											textOverflow: "ellipsis",
 											whiteSpace: "nowrap",
+											maxWidth: "60%",
 										}}
+										title={proj}
 									>
 										{proj}
 									</span>
